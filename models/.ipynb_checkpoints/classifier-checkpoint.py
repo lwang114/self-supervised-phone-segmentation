@@ -5,22 +5,22 @@ class Classifier(nn.Module):
     def __init__(
         self, 
         mode="finetune",
-        n_layers=24,
-        input_size=768,
+        n_layers=12
     ):
         super(Classifier, self).__init__()
         self.mode = mode
+        # TODO
         if self.mode == "readout":
             self.n_weights = n_layers
             self.weight = nn.parameter.Parameter(torch.ones(self.n_weights, 1, 1, 1) / self.n_weights)
             self.layerwise_convolutions = nn.ModuleList([
                 nn.Sequential(
-                    nn.Conv1d(input_size, input_size, kernel_size=9, padding=4, stride=1),
+                    nn.Conv1d(1024, 1024, kernel_size=9, padding=4, stride=1),
                     nn.ReLU(),
                 ) for _ in range(self.n_weights)
             ])
             self.network = nn.Sequential(
-                nn.Conv1d(input_size, 512, kernel_size=3, stride=1, padding=1),
+                nn.Conv1d(1024, 512, kernel_size=3, stride=1, padding=1),
                 nn.ReLU(),
                 nn.Conv1d(512, 256, kernel_size=3, stride=1, padding=1),
                 nn.ReLU(),

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import random
 
-LAYERS = [(10,5,0), (3,2,0), (3,2,0), (3,2,0), (3,2,0), (2,2,0), (2,2,0)]
+LAYERS = [f'feat_layer{i}/precompute_pca512' for i in range(24)]
 
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2**32
@@ -97,57 +97,88 @@ def get_dloaders(cfg, layers, logger, g=None):
     )
     return trainloader, valloader, testloader
 
-class WavPhnDataset(Dataset):
-    def __init__(self, path, layers=LAYERS, files=None):
-        self.path = path
+class ExtractedPhnDataset(Dataset):
+    def __init__(self, paths):
+        self.paths = paths
         self.layers = layers
-        self.spectral_size = partial(spectral_size, layers=layers)
-        if files is None:
-            self.data = list(iter_find_files(self.path, "*.wav"))
-        else:
-            self.data = files
-        self.files = files
-        super(WavPhnDataset, self).__init__()
+        for path in paths:
+            self.data = np.load(path+".npy")
+            with open(path+".lengths", "r") as f_len:
+                sizes = f_len.read().strip().split("\n")
+                self.sizes = list(map(int, sizes))
+                self.offsets = []
+                offset = 0
+                for size in self.sizes:
+                    self.offsets.append(offset)
+                    offset += size
+
+            self.phonemes = []
+            self.times = []
+            self.scaled_times = []
+            self.bin_labels = []
+            with open(path+"_gt.src", "r") as gt_f:
+                for line in gt_f:
+                    clusts = list(map(int, line.rstrip().split()))
+                    clusts = torch.tensor(clusts)
+                    clusts, _, counts = clusts.unique_consecutive(return_inverse=True, return_counts=True)
+                    phonemes = list(map(lambda x:str(x.item()), clusts))
+                    times = []
+                    scaled_times = []
+                    offset = 0
+                    for c in counts:
+                        times.append((offset*320, (offset+c.item())*320))
+                        scaled_times.append((offset, offset+c.item()))
+                        offset += c.item()
+                    self.phonemes.append(phonemes)
+                    self.times.append(times)
+                    self.scaled_times.append(scaled_times)
+
+            with open(path+".src", "r") as src_f:
+                for line in src_f:
+                    clusts = list(map(int, line.rstrip().split()))
+                    clusts = torch.tensor(clusts)
+                    _, _, counts = clusts.unique_consecutive(return_inverse=True, return_counts=True)
+                    pred_segments = []
+                    offset = counts[0].item()
+                    for c in counts[1:]:
+                        pred_segments.append(offset)
+                        offset += c.item()
+                    bin_labels = torch.zeros(len(clusts)).float()
+                    bin_labels[pred_segments] = 1.0
+                    self.bin_labels.append(bin_labels)
+                
+        super(ExtractedPhnDataset, self).__init__()
 
     @staticmethod
     def get_datasets(path):
         raise NotImplementedError
 
-    def process_file(self, wav_path):
-        phn_path = wav_path.replace("wav", "phn")
-        audio, sr = torchaudio.load(wav_path)
-        audio = audio[0]
-        audio_len = len(audio)
-        spectral_len = self.spectral_size(audio_len)
-        len_ratio = (audio_len / spectral_len)
-
-        with open(phn_path, "r") as f:
-            lines = f.readlines()
-            lines = list(map(lambda line: line.split(" "), lines))
-            scaled_times = torch.FloatTensor(list(map(lambda line: (int(int(line[0]) / len_ratio), int(int(line[1]) / len_ratio)), lines)))[1:-1]
-            times = torch.FloatTensor(list(map(lambda line: (int(line[0]), int(line[1])), lines)))[1:-1]
-            phonemes = list(map(lambda line: line[2].strip(), lines))[1:-1]
-            bin_labels = torch.zeros(spectral_len).float()
-            bin_labels[torch.tensor([scaled_times[0][0].item(), scaled_times[0][1].item()] + [s[1].item() for s in scaled_times[1:]], dtype=int)] = 1.0
-
-        return audio, sr, times.tolist(), scaled_times.tolist(), bin_labels, phonemes, wav_path
+    def process_file(self, idx):
+        offset = self.offsets[idx]
+        size = self.sizes[idx]
+        audio = self.data[idx][offset:offset+size]
+        phonemes = self.phonemes[idx]
+        times = self.times[idx]
+        scaled_times = self.scaled_times[idx]
+        bin_labels = self.bin_labels[idx]
+        return audio, 16e3, times, scaled_times, bin_labels, phonemes, str(idx)
 
     def __getitem__(self, idx):
-        audio, sr, seg, seg_scaled, bin_labels, phonemes, fname = self.process_file(self.data[idx])
-        return audio, sr, seg, seg_scaled, phonemes, bin_labels, self.spectral_size(len(audio)), fname
+        audio, sr, seg, seg_scaled, bin_labels, phonemes, fname = self.process_file(idx)
+        return audio, sr, seg, seg_scaled, phonemes, bin_labels, len(audio), fname
 
     def __len__(self):
         return len(self.data)
 
 
-class TrainTestDataset(WavPhnDataset):
-    def __init__(self, path, layers=LAYERS, files=None):
-        super(TrainTestDataset, self).__init__(path, layers, files)
+class TrainTestDataset(ExtractedPhnDataset):
+    def __init__(self, paths, layers=LAYERS, files=None):
+        super(TrainTestDataset, self).__init__(paths)
 
     @staticmethod
     def get_datasets(path, val_ratio=0.1, train_percent=1.0, layers=LAYERS, files=None):
-        train_dataset = TrainTestDataset(join(path, 'train'), layers, files)
-        test_dataset  = TrainTestDataset(join(path, 'test'), layers, files)
+        train_dataset = TrainTestDataset([join(path, l, 'train') for l in layers])
+        test_dataset  = TrainTestDataset([join(path, l, 'valid') for l in layers])
         train_len   = len(train_dataset)
         train_split = int(train_len * (1 - val_ratio))
         val_split   = train_len - train_split
@@ -162,16 +193,16 @@ class TrainTestDataset(WavPhnDataset):
 
 
 class TrainValTestDataset(WavPhnDataset):
-    def __init__(self, path, layers=LAYERS, files=None):
-        super(TrainValTestDataset, self).__init__(path, layers, files)
+    def __init__(self, paths, layers=LAYERS, files=None):
+        super(TrainValTestDataset, self).__init__(paths)
 
     @staticmethod
     def get_datasets(path, layers=LAYERS, files=None, train_percent=1.0):
-        train_dataset = TrainValTestDataset(join(path, 'train'), layers=layers, files=files)
+        train_dataset = TrainValTestDataset([join(path, l, 'train') for l in layers])
         if train_percent != 1.0:
             train_dataset = get_subset(train_dataset, train_percent)
             train_dataset.path = join(path, 'train')
-        val_dataset = TrainValTestDataset(join(path, 'val'), layers=layers, files=files)
-        test_dataset = TrainValTestDataset(join(path, 'test'), layers=layers, files=files)
+        val_dataset = TrainValTestDataset([join(path, l, 'valid') for l in layers])
+        test_dataset = TrainValTestDataset([join(path, l, 'valid') for l in layers])
 
         return train_dataset, val_dataset, test_dataset

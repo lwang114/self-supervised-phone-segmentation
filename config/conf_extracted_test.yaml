@@ -1,0 +1,30 @@
+# NOTE: do not name me "config.yml" to avoid conflict with fairseq defaults
+
+hydra:
+  run:
+    dir: ./outputs/${now:%Y-%m-%d}/${exp_name}-${now:%H-%M-%S}
+exp_name: null
+buckeye_path: null
+timit_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/manifest/timit_unsup_seg/matched
+data: timit
+val_ratio: 0.0  # Ratio of training set to use for timit validation
+train_percent: 1.0 # Percentage of training data to use 
+num_workers: 0
+base_ckpt_path: null
+ckpt_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/self-supervised-phone-segmentation/outputs/2023-05-23/None-11-56-41/model.ckpt
+out_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/self-supervised-phone-segmentation/outputs/2023-05-23/None-11-56-41
+seed: 0
+mode: readout
+margin: 0.3 # Classifier threshold margin
+label_dist_threshold: 1 # 20ms tolerance
+print_interval: 10 # Train batches to print loss stats
+val_interval: 200 # Train batches to eval step
+optim_type: adam
+beta1: 0.9
+beta2: 0.999
+momentum: 0.9
+weight_decay: 0
+pos_weight: 1.0 # BCE loss weighting
+epochs: 50
+batch_size: 4
+lr: 0.001
