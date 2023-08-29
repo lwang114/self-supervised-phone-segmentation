@@ -5,7 +5,7 @@ hydra:
     dir: ./outputs/${now:%Y-%m-%d}/${exp_name}-${now:%H-%M-%S}
 exp_name: null
 buckeye_path: null
-timit_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/manifest/timit_norep/unmatched
+timit_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/manifest/timit_norep/matched
 data: timit
 val_ratio: 0.1  # Ratio of training set to use for timit validation
 train_percent: 1.0 # Percentage of training data to use 

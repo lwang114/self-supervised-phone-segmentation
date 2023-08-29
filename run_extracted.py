@@ -3,7 +3,8 @@ from models.classifier import Classifier
 from utils.misc import load_model
 from utils.extracted_dataloader import get_dloaders
 import hydra, os, logging, random, numpy as np, torch
-LAYERS = [f'feat_layer{i}/precompute_pca512' for i in range(1, 25)]
+#LAYERS = [f'feat_layer{i}/precompute_pca512' for i in range(1, 25)]
+LAYERS = ['feat/precompute_pca512']
 IN_DIM = 512
 #LAYERS = [f'feat_layer{i}' for i in range(7, 19)]
 #IN_DIM=1024

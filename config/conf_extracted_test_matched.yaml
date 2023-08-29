@@ -5,14 +5,14 @@ hydra:
     dir: ./outputs/${now:%Y-%m-%d}/${exp_name}-${now:%H-%M-%S}
 exp_name: null
 buckeye_path: null
-timit_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/manifest/timit_norep/unmatched
+timit_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/manifest/timit_norep/matched
 data: timit
 val_ratio: 0.0  # Ratio of training set to use for timit validation
 train_percent: 1.0 # Percentage of training data to use 
 num_workers: 0
 base_ckpt_path: null
-ckpt_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/self-supervised-phone-segmentation/outputs/2023-08-29/None-11-45-09/model.ckpt
-out_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/self-supervised-phone-segmentation/outputs/timit_unsup_seg_readout_unmatched
+ckpt_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/self-supervised-phone-segmentation/outputs/2023-05-23/None-11-56-41/model.ckpt
+out_path: /home/lwang114/workplace/spring2023/GraphUnsupASR/self-supervised-phone-segmentation/outputs/timit_unsup_seg_readout_matched
 seed: 0
 mode: readout
 margin: 0.1 # Classifier threshold margin

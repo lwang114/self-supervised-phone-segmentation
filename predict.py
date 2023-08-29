@@ -7,7 +7,8 @@ from utils.eval import PrecisionRecallMetric
 import hydra, os, logging, random, numpy as np, torch
 from tqdm import tqdm
 from sklearn.metrics import precision_recall_curve
-LAYERS = [f'feat_layer{i}/precompute_pca512' for i in range(1, 25)]
+#LAYERS = [f'feat_layer{i}/precompute_pca512' for i in range(1, 25)]
+LAYERS = ['feat/precompute_pca512']
 IN_DIM = 512
 
 @hydra.main(config_path='./config', config_name='conf_extracted_test')
@@ -61,6 +62,7 @@ def main(cfg):
         sigmoid = torch.nn.Sigmoid()
         logger.info(f"Extract segmentations for {len(dataloader.dataset)} samples")
 
+        os.makedirs(cfg.out_path, exist_ok=True)
         with open(f'{cfg.out_path}/{split}_margin{int(cfg.margin*100)}.src', 'w') as f_src:
             progress = tqdm(ncols=80, total=len(dataloader))
             for samp in dataloader:
