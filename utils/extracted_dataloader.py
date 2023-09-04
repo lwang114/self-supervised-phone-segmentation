@@ -219,6 +219,6 @@ class TrainValTestDataset(ExtractedPhnDataset):
             train_dataset = get_subset(train_dataset, train_percent)
             train_dataset.path = join(path, 'train')
         val_dataset = TrainValTestDataset([join(path, l, 'valid') for l in layers])
-        test_dataset = TrainValTestDataset([join(path, l, 'valid') for l in layers])
+        test_dataset = TrainValTestDataset([join(path, l, 'test') for l in layers])
 
         return train_dataset, val_dataset, test_dataset

@@ -47,7 +47,7 @@ def main(cfg):
 
     dataloaders = {
         "train": trainloader,
-#        "val": valloader,
+        "valid": valloader,
         "test": testloader,    
     }
 
